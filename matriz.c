@@ -1,98 +1,136 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <string.h>
 #include "matriz.h"
 
-pixel** cria_matriz(int x, int y){
-    int i;
-    pixel** img = (pixel**)malloc(y*sizeof(pixel*));
-    for(i = 0; i < y; i++){
-        img[i] = (pixel*)malloc(x*sizeof(pixel*));
+int* learquivo(){
+    FILE* in = fopen("in.ppm", "r");
+    int cont, x, y, inutil, i;
+    int* v;
+    char linha[2000];
+    char *token;
+    cont = 0;
+    fscanf(in, "%*[^\n]\n");
+    while(cont <= 2){
+        fgets(linha, 2000, in);
+        if(linha[0] != '#'){
+            token = strtok(linha, " ");
+            while(token != NULL){
+                if(cont == 0) x = atoi(token);
+                if(cont == 1) y = atoi(token);
+                if(cont == 2) inutil = atoi(token);
+                cont++;
+                token = strtok(NULL, " ");
+            }
+        }
     }
-    return img;
+    v = (int*)malloc(((3*x*y)+2)*sizeof(int));
+    i = 2;
+    v[0] = x;
+    v[1] = y;
+    while(i < 3*x*y){
+        fgets(linha, 2000, in);
+        if(linha[0] != '#'){
+            token = strtok(linha, " ");
+            while(token != NULL){
+                v[i] = atoi(token);
+                i++;
+                token = strtok(NULL, " ");
+            }
+        }
+    }
+    return v;
 }
 
-pixel** cria_transposta(pixel** img, int x, int y){
-    if(img[0][0] == NULL) return NULL;
-    int i, j;
-    pixel** trans = (pixel**)malloc(x*sizeof(pixel*));
-    for(i = 0; i < x; i++){
-        trans[i] = (pixel*)malloc(y*sizeof(pixel));
+pixel** criar_matriz(int x, int y){
+    int i;
+    pixel** p = (pixel**)malloc(y*sizeof(pixel*));
+    for(i = 0; i < y; i++){
+        p[i] = (pixel*)malloc(x*sizeof(pixel));
     }
+    return p;
+}
+
+pixel** criar_trans(pixel** p, int x, int y){
+    int i, j;
+    pixel** trans = criar_matriz(y, x);
     for(i = 0; i < x; i++){
         for(j = 0; j < y; j++){
-            trans[i][j] = img[j][i];
+            trans[i][j] = p[j][i];
         }
     }
     return trans;
 }
 
-void remove(pixel** p, pixel** nova, int x, int y, int fora){
-    int j;
-    for(j = 0; j < fora; j++){
-        nova[y][j] = p[y][j];
-    }
-    for(j = fora; j < x-1; j++){
-        nova[y][j] = p[y][j+1];
-    }
-}
-
-void preenche_matriz(pixel** img, FILE* in, int x, int y){
-    int i, j, k;
+void preenche_matriz(pixel** p, int x, int y, int* v){
+    int i, j, k, cont; 
+    cont = 2;
     for(i = 0; i < y; i++){
         for(j = 0; j < x; j++){
             for(k = 0; k < 3; k++){
                 switch(k){
                     case 0:
-                        fscanf(in, "%d", &img[i][j].R);
+                        p[i][j].R = v[cont];
+                        cont++;
                         break;
                     case 1:
-                        fscanf(in, "%d", &img[i][j].G);
+                        p[i][j].G = v[cont];
+                        cont++;
                         break;
                     case 2:
-                        fscanf(in, "%d", &img[i][j].B);
+                        p[i][j].B = v[cont];
+                        cont++;
                 }
             }
-            img[i][j].i = 0.3*img[i][j].R + 0.59*img[i][j].G + 0.11*img[i][j].B;
+            p[i][j].i = 0.3*p[i][j].R + 0.59*p[i][j].G + 0.11*p[i][j].B;
         }
     }
+}
+
+void remover(pixel** p, int x, int y, int fora){
+    int j;
+    for(j = fora; j < x-1; j++){
+        p[y][j] = p[y][j+1];
+    }
+    p[y][x-1].e = (-1);
 }
 
 int energiax(pixel **p, int x, int y, int maxx, int maxy){
     int e;
     if(x == 0 && y == 0){
-        e = p[x][y].i*(-1) + p[x+1][y].i*1 + p[x][y].i*(-2) + p[x+1][y].i*2 + p[x][y+1].i*(-1) + p[x+1][y+1].i*1;
+        e = p[x][y].i*(-1) + p[x][y].i*(-2) + p[x][y+1].i*(-1) + p[x+1][y].i + p[x+1][y].i*2 + p[x+1][y+1].i;
         return e;
     }
     if(x == 0 && y == maxy){
-        e = p[x][y-1].i*(-1) + p[x+1][y-1].i*1 + p[x][y].i*(-2) + p[x+1][y].i*2 + p[x][y].i*(-1) + p[x+1][y].i*1;
+        e = p[x][y-1].i*(-1) + p[x][y].i*(-2) + p[x][y].i*(-1) + p[x+1][y-1].i + p[x+1][y].i*2 + p[x+1][y].i;
         return e; 
     }
     if(x == maxx && y == 0){
-        e = p[x-1][y].i*(-1) + p[x][y].i*1 + p[x-1][y].i*(-2) + p[x][y].i*2 + p[x-1][y+1].i*(-1) + p[x][y+1].i*1;
+        e = p[x-1][y].i*(-1) + p[x][y].i + p[x-1][y].i*(-2) + p[x][y].i*2 + p[x-1][y+1].i*(-1) + p[x][y+1].i;
         return e;
     }
     if(x == maxx && y == maxy){
-        e = p[x-1][y-1].i*(-1) + p[x][y-1].i*1 + p[x-1][y].i*(-2) + p[x][y].i*2 + p[x-1][y].i*(-1) + p[x][y].i*1;
+        e = p[x-1][y-1].i*(-1) + p[x][y-1].i + p[x-1][y].i*(-2) + p[x][y].i*2 + p[x-1][y].i*(-1) + p[x][y].i;
         return e;
     }
-    if(x == 0){
-        e = p[x][y-1].i*(-1) + p[x+1][y-1].i*1 + p[x][y].i*(-2) + p[x+1][y].i*2 + p[x][y+1].i*(-1) + p[x][y+1].i*1;
+    if(x == 0 && y > 0 && y < maxy){
+        e = p[x][y-1].i*(-1) + p[x+1][y-1].i + p[x][y].i*(-2) + p[x+1][y].i*2 + p[x][y+1].i*(-1) + p[x+1][y+1].i;
         return e;
     }
-    if(x == maxx){
-        e = p[x-1][y-1].i*(-1) + p[x][y-1].i*1 + p[x-1][y].i*(-2) + p[x][y].i*2 + p[x-1][y+1].i*(-1) + p[x][y+1].i*1;
+    if(x == maxx && y > 0 && y < maxy){
+        e = p[x-1][y-1].i*(-1) + p[x][y-1].i + p[x-1][y].i*(-2) + p[x][y].i*2 + p[x-1][y+1].i*(-1) + p[x][y+1].i;
         return e; 
     }
-    if(y == 0){
-        e = p[x-1][y].i*(-1) + p[x+1][y].i*1 + p[x-1][y].i*(-2) + p[x+1][y].i*2 + p[x-1][y+1].i*(-1) + p[x+1][y+1].i*1;
+    if(y == 0 && x > 0 && x < maxx){
+        e = p[x-1][y].i*(-1) + p[x+1][y].i + p[x-1][y].i*(-2) + p[x+1][y].i*2 + p[x-1][y+1].i*(-1) + p[x+1][y+1].i;
         return e;
     }
-    if(y == maxy){
-        e = p[x-1][y].i*(-1) + p[x+1][y].i*1 + p[x-1][y].i*(-2) + p[x+1][y].i*2 + p[x-1][y+1].i*(-1) + p[x+1][y+1].i*1;
+    if(y == maxy && x > 0 && x < maxx){
+        e = p[x-1][y-1].i*(-1) + p[x+1][y-1].i + p[x-1][y].i*(-2) + p[x+1][y].i*2 + p[x-1][y].i*(-1) + p[x+1][y].i;
         return e;
     }
-    e = p[x-1][y-1].i*(-1) + p[x+1][y-1].i*1 + p[x-1][y].i*(-2) + p[x+1][y].i*2 + p[x-1][y+1].i*(-1) + p[x+1][y+1].i*1;
+    e = p[x-1][y-1].i*(-1) + p[x+1][y-1].i + p[x-1][y].i*(-2) + p[x+1][y].i*2 + p[x-1][y+1].i*(-1) + p[x+1][y+1].i;
     return e;
 }
 
@@ -114,19 +152,19 @@ int energiay(pixel **p, int x, int y, int maxx, int maxy){
         e = p[x-1][y-1].i*(-1) + p[x-1][y].i*1 + p[x][y-1].i*(-2) + p[x][y].i*2 + p[x][y-1].i*(-1) + p[x][y].i*1;
         return e;
     }
-    if(x == 0){
+    if(x == 0 && y > 0 && y < maxy){
         e = p[x][y-1].i*(-1) + p[x][y+1].i*1 + p[x][y-1].i*(-2) + p[x][y+1].i*2 + p[x+1][y-1].i*(-1) + p[x+1][y+1].i*1;
         return e;
     }
-    if(x == maxx){
+    if(x == maxx && y > 0 && y < maxy){
         e = p[x-1][y-1].i*(-1) + p[x-1][y+1].i*1 + p[x][y-1].i*(-2) + p[x][y+1].i*2 + p[x][y-1].i*(-1) + p[x][y+1].i*1;
         return e;
     }
-    if(y == 0){
+    if(y == 0 && x > 0 && x < maxx){
         e = p[x-1][y].i*(-1) + p[x-1][y+1].i*1 + p[x][y].i*(-2) + p[x][y+1].i*2 + p[x+1][y].i*(-1) + p[x+1][y+1].i*1;
         return e;
     }
-    if(y == maxy){
+    if(y == maxy && x > 0 && x < maxx){
         e = p[x-1][y-1].i*(-1) + p[x-1][y].i*1 + p[x][y-1].i*(-2) + p[x][y].i*2 + p[x+1][y-1].i*(-1) + p[x+1][y].i*1;
         return e;
     }
@@ -146,12 +184,31 @@ void energia(pixel** p, int maxx, int maxy){
     }
 }
 
-int menor(pixel** p, int i, int j){
-    int menor = p[i][j-1].e
-    int jmin = j-1;
-    for(int k = j; k <= j-1; k++){
-        if(p[i][k] < menor){
-            menor = p[i][k];
+int menor(pixel** p, int i, int j, int maxx){
+    int jmin;
+    if(j == 0){
+        if(p[i][j].e < p[i][j+1].e){
+            jmin = j;
+            return jmin;
+        }else{
+            jmin = j+1;
+            return jmin;
+        }
+    }
+    if(j == maxx-1){
+        if(p[i][j].e < p[i][j-1].e){
+            jmin = j;
+            return jmin;
+        }else{
+            jmin = j-1;
+            return jmin;
+        }
+    }
+    int m = p[i][j-1].e;
+    jmin = j-1;
+    for(int k = j; k <= j+1; k++){
+        if(p[i][k].e < m){
+            m = p[i][k].e;
             jmin = k;
         }
     }
@@ -159,43 +216,59 @@ int menor(pixel** p, int i, int j){
 }
 
 void seam(pixel** p, int maxx, int maxy){
-    int i, j;
+    int i, j, m;
     for(i = maxy-2; i >= 0; i--){
         for(j = 0; j < maxx; j++){
-            if(j == 0){
-                p[i][j].e = p[i][j].e + min(p[i+1][j].e, p[i+1][j+1].e, p[i+1][j+1].e);
-            }
-            if(j == maxx-1){
-                p[i][j].e = p[i][j].e + min(p[i+1][j-1].e, p[i+1][j].e, p[i+1][j].e);
-            }
-            if(j > 0 && j < maxx-1){
-                p[i][j].e = p[i][j].e + min(p[i+1][j-1].e, p[i+1][j].e, p[i+1][j+1].e);
-            }
+            m = menor(p, i+1, j, maxx);
+            p[i][j].e = p[i][j].e + p[i+1][m].e;
         }
     }
 }
 
 void carv(pixel** p, int maxx, int maxy){
     int i, j, jmin;
-    int menor = p[0][0].e;
+    int min = p[0][0].e;
     jmin = 0;
     for(j = 1; j < maxx; j++){
-        if(p[0][j].e < menor){
-            menor = p[0][j].e;
+        if(p[0][j].e < min){
+            min = p[0][j].e;
             jmin = j;
         }
     }
-    for(i = 0; i < maxy-1; i++){
+    for(i = 0; i < maxy; i++){
         j = jmin;
-        if(jmin == 0){
-            if(p[i+1][jmin].e < p[i+1][jmin + 1].e) jmin++;
-        }
-        if(jmin == maxx-1){
-            if(p[i+1][jmin - 1].e < p[i+1][jmin].e) jmin--;
-        }
-        if(jmin > 0 && < maxx-1){
-            jmin = menor(img, i+1, jmin);
-        }
-        //retira p[i][j]
+        if(i < maxy-1) jmin = menor(p, i+1, jmin, maxx);
+        remover(p, maxx, i, j);
     }
+}
+
+void imprime(pixel** img, int maxx, int maxy){
+    int i, j, k;
+    for(i = 0; i < maxy; i++){
+        for(j = 0; j < maxx; j++){
+            if(img[i][j].e == -1) break;
+            for(k = 0; k < 3; k++){
+                switch(k ){
+                    case 0:
+                        printf("%d ", img[i][j].R);
+                        break;
+                    case 1:
+                        printf("%d ", img[i][j].G);
+                        break;
+                    case 2:
+                        printf("%d ", img[i][j].B);
+                        break;
+                }
+            }
+        }
+        printf("\n");
+    }
+}
+
+void destroi(pixel** p, int y){
+    int i;
+    for(i = 0; i < y; i++){
+        free(p[i]);
+    }
+    free(p);
 }
